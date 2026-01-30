@@ -14,26 +14,13 @@ function ConnectWallet() {
 
   if (isConnected) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <span style={{ 
-          padding: '8px 12px', 
-          background: '#e0e0e0', 
-          borderRadius: '4px',
-          fontSize: '14px'
-        }}>
+      <div className="wallet-container">
+        <span className="wallet-address">
           {address?.slice(0, 6)}...{address?.slice(-4)}
         </span>
         <button
           onClick={() => disconnect()}
-          style={{
-            padding: '8px 16px',
-            background: '#dc3545',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            fontSize: '14px'
-          }}
+          className="btn btn-danger"
         >
           Disconnect
         </button>
@@ -42,20 +29,12 @@ function ConnectWallet() {
   }
 
   return (
-    <div style={{ display: 'flex', gap: '10px' }}>
+    <div className="wallet-container">
       {connectors.map((connector) => (
         <button
           key={connector.id}
           onClick={() => connect({ connector })}
-          style={{
-            padding: '8px 16px',
-            background: '#007bff',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            fontSize: '14px'
-          }}
+          className="btn btn-primary"
         >
           Connect {connector.name}
         </button>
@@ -68,17 +47,9 @@ function App() {
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
-        <div style={{ padding: '20px' }}>
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center', 
-            marginBottom: '20px',
-            padding: '15px',
-            background: '#f8f9fa',
-            borderRadius: '8px'
-          }}>
-            <h1 style={{ margin: 0 }}>📝 Web3 Notes</h1>
+        <div className="app-container">
+          <div className="app-header">
+            <h1 className="app-title">📝 Web3 Notes</h1>
             <ConnectWallet />
           </div>
           <Notes />

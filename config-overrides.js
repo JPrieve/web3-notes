@@ -74,3 +74,15 @@ module.exports = function override(config, env) {
   
   return config;
 };
+
+module.exports.devServer = function (configFunction) {
+  return function (proxy, allowedHost) {
+    const config = configFunction(proxy, allowedHost);
+    
+    // Remove deprecated onBeforeSetupMiddleware if it exists
+    delete config.onBeforeSetupMiddleware;
+    delete config.onAfterSetupMiddleware;
+    
+    return config;
+  };
+};

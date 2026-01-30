@@ -1,0 +1,255 @@
+.notes-connect-screen {
+  padding: 20px;
+  text-align: center;
+}
+
+.notes-container {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.notes-info-box {
+  background: #f0f0f0;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.notes-form {
+  background: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.notes-form-group {
+  margin-bottom: 15px;
+}
+
+.notes-input {
+  width: 100%;
+  padding: 10px;
+  font-size: 16px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  font-family: inherit;
+}
+
+.notes-textarea {
+  width: 100%;
+  padding: 10px;
+  font-size: 16px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.notes-button-group {
+  display: flex;
+  gap: 10px;
+}
+
+.notes-btn {
+  padding: 10px 20px;
+  font-size: 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.notes-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.notes-btn-primary {
+  background: #007bff;
+  color: white;
+}
+
+.notes-btn-primary:hover:not(:disabled) {
+  background: #0056b3;
+}
+
+.notes-btn-secondary {
+  background: #6c757d;
+  color: white;
+}
+
+.notes-btn-secondary:hover:not(:disabled) {
+  background: #545b62;
+}
+
+.notes-tabs {
+  margin-bottom: 20px;
+}
+
+.notes-tab {
+  padding: 10px 20px;
+  font-size: 16px;
+  border: none;
+  border-radius: 4px 4px 0 0;
+  cursor: pointer;
+  margin-right: 5px;
+  font-family: inherit;
+}
+
+.notes-tab-active {
+  background: #007bff;
+  color: white;
+}
+
+.notes-tab-inactive {
+  background: #e0e0e0;
+  color: black;
+}
+
+.notes-tab:hover {
+  opacity: 0.9;
+}
+
+.notes-section {
+  margin-bottom: 30px;
+}
+
+.notes-section-title {
+  margin-bottom: 15px;
+}
+
+.notes-grid {
+  display: grid;
+  gap: 15px;
+}
+
+.notes-empty {
+  text-align: center;
+  color: #666;
+}
+
+/* Note Card Styles */
+.note-card {
+  background: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  border: 2px solid #ccc;
+  position: relative;
+}
+
+.note-card.public {
+  border-color: #28a745;
+}
+
+.note-card-pin-indicator {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-size: 20px;
+}
+
+.note-card-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+}
+
+.note-card-main {
+  flex: 1;
+}
+
+.note-card-title {
+  margin: 0 0 10px 0;
+}
+
+.note-card-badge {
+  margin-left: 10px;
+}
+
+.note-card-badge.public {
+  color: #28a745;
+}
+
+.note-card-badge.version {
+  font-size: 12px;
+  color: #666;
+}
+
+.note-card-text {
+  margin: 0 0 10px 0;
+  white-space: pre-wrap;
+}
+
+.note-card-meta {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.note-card-meta-text {
+  color: #666;
+  font-size: 14px;
+}
+
+.note-card-tip-badge {
+  background: #ffc107;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-weight: bold;
+  font-size: 12px;
+}
+
+.note-card-actions {
+  display: flex;
+  gap: 5px;
+  margin-left: 10px;
+  flex-wrap: wrap;
+}
+
+.note-card-btn {
+  padding: 5px 10px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.note-card-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.note-card-btn-edit {
+  background: #ffc107;
+  color: black;
+}
+
+.note-card-btn-pin {
+  background: #6c757d;
+  color: white;
+}
+
+.note-card-btn-visibility {
+  background: #17a2b8;
+  color: white;
+}
+
+.note-card-btn-delete {
+  background: #dc3545;
+  color: white;
+}
+
+.note-card-btn-tip {
+  padding: 5px 15px;
+  background: #28a745;
+  color: white;
+  font-weight: bold;
+}
+
+.note-card-btn:hover:not(:disabled) {
+  opacity: 0.85;
+}

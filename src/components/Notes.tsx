@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
-import { formatEther } from 'viem';
+import './Notes.css';
 
 const CONTRACT_ADDRESS = '0x5FbDB2315678afecb367f032d93F642f64180aa3';
 
@@ -29,7 +29,10 @@ const NOTES_ABI = [
         { name: 'content', type: 'string' },
         { name: 'createdAt', type: 'uint256' },
         { name: 'updatedAt', type: 'uint256' },
-        { name: 'isPublic', type: 'bool' }
+        { name: 'isPublic', type: 'bool' },
+        { name: 'isPinned', type: 'bool' },
+        { name: 'tipsReceived', type: 'uint256' },
+        { name: 'version', type: 'uint256' }
       ]
     }],
     stateMutability: 'view'
@@ -47,7 +50,10 @@ const NOTES_ABI = [
         { name: 'content', type: 'string' },
         { name: 'createdAt', type: 'uint256' },
         { name: 'updatedAt', type: 'uint256' },
-        { name: 'isPublic', type: 'bool' }
+        { name: 'isPublic', type: 'bool' },
+        { name: 'isPinned', type: 'bool' },
+        { name: 'tipsReceived', type: 'uint256' },
+        { name: 'version', type: 'uint256' }
       ]
     }],
     stateMutability: 'view'
@@ -85,6 +91,41 @@ const NOTES_ABI = [
     stateMutability: 'view'
   },
   {
+    type: 'function',
+    name: 'togglePinNote',
+    inputs: [{name: 'noteId', type: 'uint256'}],
+    outputs: [],
+    stateMutability: 'nonpayable'
+  },
+  {
+    type: 'function',
+    name: 'tipNote',
+    inputs: [{name: 'noteId', type: 'uint256'}],
+    outputs: [],
+    stateMutability: 'payable'
+  },
+  {
+    type: 'function',
+    name: 'getPinnedNotes',
+    inputs: [{name: 'user', type: 'address'}],
+    outputs: [{
+      type: 'tuple[]',
+      components: [
+        {name: 'id', type: 'uint256'},
+        {name: 'author', type: 'address'},
+        {name: 'title', type: 'string'},
+        {name: 'content', type: 'string'},
+        {name: 'createdAt', type: 'uint256'},
+        {name: 'updatedAt', type: 'uint256'},
+        {name: 'isPublic', type: 'bool'},
+        {name: 'isPinned', type: 'bool'},
+        {name: 'tipsReceived', type: 'uint256'},
+        {name: 'version', type: 'uint256'}
+      ]
+    }],
+    stateMutability: 'view'
+  },
+  {
     type: 'event',
     name: 'NoteCreated',
     inputs: [
@@ -104,6 +145,9 @@ interface Note {
   createdAt: bigint;
   updatedAt: bigint;
   isPublic: boolean;
+  isPinned: boolean;
+  tipsReceived: bigint;
+  version: bigint;
 }
 
 export default function Notes() {
@@ -119,6 +163,17 @@ export default function Notes() {
     address: CONTRACT_ADDRESS,
     abi: NOTES_ABI,
     functionName: 'getUserNotes',
+    args: address ? [address] : undefined,
+    query: {
+      enabled: !!address
+    }
+  });
+
+  // Read pinned notes
+  const { data: pinnedNotes, refetch: refetchPinnedNotes } = useReadContract({
+    address: CONTRACT_ADDRESS,
+    abi: NOTES_ABI,
+    functionName: 'getPinnedNotes',
     args: address ? [address] : undefined,
     query: {
       enabled: !!address
@@ -155,11 +210,12 @@ export default function Notes() {
     if (isSuccess) {
       refetchUserNotes();
       refetchPublicNotes();
+      refetchPinnedNotes();
       setTitle('');
       setContent('');
       setEditingNote(null);
     }
-  }, [isSuccess, refetchUserNotes, refetchPublicNotes]);
+  }, [isSuccess, refetchUserNotes, refetchPublicNotes, refetchPinnedNotes]);
 
   const handleCreateNote = () => {
     if (!title || !content) return;
@@ -203,6 +259,34 @@ export default function Notes() {
     });
   };
 
+  const handleTogglePin = (noteId: bigint) => {
+    writeContract({
+      address: CONTRACT_ADDRESS,
+      abi: NOTES_ABI,
+      functionName: 'togglePinNote',
+      args: [noteId]
+    });
+  };
+
+  const handleTipNote = (noteId: bigint) => {
+    const tipAmount = prompt('Enter tip amount in ETH (e.g., 0.01):');
+    if (!tipAmount) return;
+    
+    const tipInWei = BigInt(Math.floor(parseFloat(tipAmount) * 1e18));
+    if (tipInWei <= 0) {
+      alert('Tip amount must be greater than 0');
+      return;
+    }
+
+    writeContract({
+      address: CONTRACT_ADDRESS,
+      abi: NOTES_ABI,
+      functionName: 'tipNote',
+      args: [noteId],
+      value: tipInWei
+    });
+  };
+
   const startEditing = (note: Note) => {
     setEditingNote(note);
     setTitle(note.title);
@@ -221,7 +305,7 @@ export default function Notes() {
 
   if (!isConnected) {
     return (
-      <div style={{ padding: '20px', textAlign: 'center' }}>
+      <div className="notes-connect-screen">
         <h2>📝 Web3 Notes DApp</h2>
         <p>Please connect your wallet to use the notes application</p>
       </div>
@@ -230,63 +314,41 @@ export default function Notes() {
 
   const myNotes = (userNotes as Note[]) || [];
   const allPublicNotes = (publicNotes as Note[]) || [];
+  const myPinnedNotes = (pinnedNotes as Note[]) || [];
 
   return (
-    <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
+    <div className="notes-container">
       <h1>📝 Web3 Notes DApp</h1>
       
-      <div style={{ 
-        background: '#f0f0f0', 
-        padding: '15px', 
-        borderRadius: '8px',
-        marginBottom: '20px'
-      }}>
+      <div className="notes-info-box">
         <p><strong>Connected:</strong> {address}</p>
-        <p><strong>Total Notes:</strong> {noteCount?.toString() || '0'}</p>
+        <p><strong>Total Notes:</strong> {noteCount?.toString() || '0'} | <strong>Pinned:</strong> {myPinnedNotes.length}</p>
         <p><strong>Contract:</strong> {CONTRACT_ADDRESS}</p>
       </div>
 
       {/* Create/Edit Note Form */}
-      <div style={{ 
-        background: '#fff', 
-        padding: '20px', 
-        borderRadius: '8px',
-        marginBottom: '20px',
-        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-      }}>
+      <div className="notes-form">
         <h2>{editingNote ? '✏️ Edit Note' : '➕ Create New Note'}</h2>
-        <div style={{ marginBottom: '15px' }}>
+        <div className="notes-form-group">
           <input
             type="text"
             placeholder="Note Title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '10px',
-              fontSize: '16px',
-              borderRadius: '4px',
-              border: '1px solid #ccc'
-            }}
+            className="notes-input"
           />
         </div>
-        <div style={{ marginBottom: '15px' }}>
+        <div className="notes-form-group">
           <textarea
             placeholder="Note Content"
             value={content}
             onChange={(e) => setContent(e.target.value)}
             rows={5}
-            style={{
-              width: '100%',
-              padding: '10px',
-              fontSize: '16px',
-              borderRadius: '4px',
-              border: '1px solid #ccc'
-            }}
+            className="notes-textarea"
           />
         </div>
         {!editingNote && (
-          <div style={{ marginBottom: '15px' }}>
+          <div className="notes-form-group">
             <label>
               <input
                 type="checkbox"
@@ -297,34 +359,18 @@ export default function Notes() {
             </label>
           </div>
         )}
-        <div style={{ display: 'flex', gap: '10px' }}>
+        <div className="notes-button-group">
           <button
             onClick={editingNote ? handleUpdateNote : handleCreateNote}
             disabled={isPending || isConfirming || !title || !content}
-            style={{
-              padding: '10px 20px',
-              fontSize: '16px',
-              background: '#007bff',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer'
-            }}
+            className="notes-btn notes-btn-primary"
           >
             {isPending || isConfirming ? '⏳ Processing...' : editingNote ? '💾 Update Note' : '➕ Create Note'}
           </button>
           {editingNote && (
             <button
               onClick={cancelEditing}
-              style={{
-                padding: '10px 20px',
-                fontSize: '16px',
-                background: '#6c757d',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer'
-              }}
+              className="notes-btn notes-btn-secondary"
             >
               Cancel
             </button>
@@ -333,33 +379,16 @@ export default function Notes() {
       </div>
 
       {/* Tabs */}
-      <div style={{ marginBottom: '20px' }}>
+      <div className="notes-tabs">
         <button
           onClick={() => setActiveTab('my-notes')}
-          style={{
-            padding: '10px 20px',
-            fontSize: '16px',
-            background: activeTab === 'my-notes' ? '#007bff' : '#e0e0e0',
-            color: activeTab === 'my-notes' ? 'white' : 'black',
-            border: 'none',
-            borderRadius: '4px 4px 0 0',
-            cursor: 'pointer',
-            marginRight: '5px'
-          }}
+          className={`notes-tab ${activeTab === 'my-notes' ? 'notes-tab-active' : 'notes-tab-inactive'}`}
         >
           📋 My Notes ({myNotes.length})
         </button>
         <button
           onClick={() => setActiveTab('public')}
-          style={{
-            padding: '10px 20px',
-            fontSize: '16px',
-            background: activeTab === 'public' ? '#007bff' : '#e0e0e0',
-            color: activeTab === 'public' ? 'white' : 'black',
-            border: 'none',
-            borderRadius: '4px 4px 0 0',
-            cursor: 'pointer'
-          }}
+          className={`notes-tab ${activeTab === 'public' ? 'notes-tab-active' : 'notes-tab-inactive'}`}
         >
           🌐 Public Notes ({allPublicNotes.length})
         </button>
@@ -368,112 +397,179 @@ export default function Notes() {
       {/* Notes List */}
       <div>
         {activeTab === 'my-notes' ? (
-          myNotes.length === 0 ? (
-            <p style={{ textAlign: 'center', color: '#666' }}>
-              You haven't created any notes yet. Create your first note above!
-            </p>
-          ) : (
-            <div style={{ display: 'grid', gap: '15px' }}>
-              {myNotes.map((note) => (
-                <div
-                  key={note.id.toString()}
-                  style={{
-                    background: '#fff',
-                    padding: '20px',
-                    borderRadius: '8px',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                    border: note.isPublic ? '2px solid #28a745' : '2px solid #ccc'
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
-                    <div style={{ flex: 1 }}>
-                      <h3 style={{ margin: '0 0 10px 0' }}>
-                        {note.title}
-                        {note.isPublic && <span style={{ marginLeft: '10px', color: '#28a745' }}>🌐 Public</span>}
-                      </h3>
-                      <p style={{ margin: '0 0 10px 0', whiteSpace: 'pre-wrap' }}>{note.content}</p>
-                      <small style={{ color: '#666' }}>
-                        Created: {formatDate(note.createdAt)}
-                        {note.updatedAt > note.createdAt && ` | Updated: ${formatDate(note.updatedAt)}`}
-                      </small>
-                    </div>
-                    <div style={{ display: 'flex', gap: '5px', marginLeft: '10px' }}>
-                      <button
-                        onClick={() => startEditing(note)}
-                        style={{
-                          padding: '5px 10px',
-                          background: '#ffc107',
-                          color: 'black',
-                          border: 'none',
-                          borderRadius: '4px',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        ✏️
-                      </button>
-                      <button
-                        onClick={() => handleToggleVisibility(note.id)}
-                        disabled={isPending || isConfirming}
-                        style={{
-                          padding: '5px 10px',
-                          background: '#17a2b8',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '4px',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        {note.isPublic ? '🔒' : '🌐'}
-                      </button>
-                      <button
-                        onClick={() => handleDeleteNote(note.id)}
-                        disabled={isPending || isConfirming}
-                        style={{
-                          padding: '5px 10px',
-                          background: '#dc3545',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '4px',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        🗑️
-                      </button>
-                    </div>
-                  </div>
+          <>
+            {/* Pinned Notes Section */}
+            {myPinnedNotes.length > 0 && (
+              <div className="notes-section">
+                <h3 className="notes-section-title">📌 Pinned Notes</h3>
+                <div className="notes-grid">
+                  {myPinnedNotes.map((note) => (
+                    <NoteCard
+                      key={note.id.toString()}
+                      note={note}
+                      isOwner={true}
+                      onEdit={startEditing}
+                      onDelete={handleDeleteNote}
+                      onToggleVisibility={handleToggleVisibility}
+                      onTogglePin={handleTogglePin}
+                      onTip={handleTipNote}
+                      isPending={isPending || isConfirming}
+                    />
+                  ))}
                 </div>
-              ))}
-            </div>
-          )
+              </div>
+            )}
+            
+            {/* All Notes Section */}
+            {myNotes.length === 0 ? (
+              <p className="notes-empty">
+                You haven't created any notes yet. Create your first note above!
+              </p>
+            ) : (
+              <div>
+                {myPinnedNotes.length > 0 && <h3 className="notes-section-title">📋 All Notes</h3>}
+                <div className="notes-grid">
+                  {myNotes.map((note) => (
+                    <NoteCard
+                      key={note.id.toString()}
+                      note={note}
+                      isOwner={true}
+                      onEdit={startEditing}
+                      onDelete={handleDeleteNote}
+                      onToggleVisibility={handleToggleVisibility}
+                      onTogglePin={handleTogglePin}
+                      onTip={handleTipNote}
+                      isPending={isPending || isConfirming}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
         ) : (
           allPublicNotes.length === 0 ? (
-            <p style={{ textAlign: 'center', color: '#666' }}>
+            <p className="notes-empty">
               No public notes yet. Be the first to share a public note!
             </p>
           ) : (
-            <div style={{ display: 'grid', gap: '15px' }}>
+            <div className="notes-grid">
               {allPublicNotes.map((note) => (
-                <div
+                <NoteCard
                   key={note.id.toString()}
-                  style={{
-                    background: '#fff',
-                    padding: '20px',
-                    borderRadius: '8px',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                    border: '2px solid #28a745'
-                  }}
-                >
-                  <h3 style={{ margin: '0 0 10px 0' }}>{note.title} 🌐</h3>
-                  <p style={{ margin: '0 0 10px 0', whiteSpace: 'pre-wrap' }}>{note.content}</p>
-                  <small style={{ color: '#666' }}>
-                    By: {note.author.slice(0, 6)}...{note.author.slice(-4)} | 
-                    Created: {formatDate(note.createdAt)}
-                  </small>
-                </div>
+                  note={note}
+                  isOwner={note.author.toLowerCase() === address?.toLowerCase()}
+                  onEdit={startEditing}
+                  onDelete={handleDeleteNote}
+                  onToggleVisibility={handleToggleVisibility}
+                  onTogglePin={handleTogglePin}
+                  onTip={handleTipNote}
+                  isPending={isPending || isConfirming}
+                />
               ))}
             </div>
           )
         )}
+      </div>
+    </div>
+  );
+}
+
+// Note Card Component
+interface NoteCardProps {
+  note: Note;
+  isOwner: boolean;
+  onEdit: (note: Note) => void;
+  onDelete: (noteId: bigint) => void;
+  onToggleVisibility: (noteId: bigint) => void;
+  onTogglePin: (noteId: bigint) => void;
+  onTip: (noteId: bigint) => void;
+  isPending: boolean;
+}
+
+function NoteCard({ note, isOwner, onEdit, onDelete, onToggleVisibility, onTogglePin, onTip, isPending }: NoteCardProps) {
+  const formatDate = (timestamp: bigint) => {
+    return new Date(Number(timestamp) * 1000).toLocaleString();
+  };
+
+  const formatEtherAmount = (wei: bigint) => {
+    const eth = Number(wei) / 1e18;
+    return eth.toFixed(4);
+  };
+
+  return (
+    <div className={`note-card ${note.isPublic ? 'public' : ''}`}>
+      {note.isPinned && (
+        <div className="note-card-pin-indicator">
+          📌
+        </div>
+      )}
+      <div className="note-card-content">
+        <div className="note-card-main">
+          <h3 className="note-card-title">
+            {note.title}
+            {note.isPublic && <span className="note-card-badge public">🌐 Public</span>}
+            {note.version > 1n && <span className="note-card-badge version">(v{note.version.toString()})</span>}
+          </h3>
+          <p className="note-card-text">{note.content}</p>
+          <div className="note-card-meta">
+            <small className="note-card-meta-text">
+              {!isOwner && `By: ${note.author.slice(0, 6)}...${note.author.slice(-4)} | `}
+              Created: {formatDate(note.createdAt)}
+              {note.updatedAt > note.createdAt && ` | Updated: ${formatDate(note.updatedAt)}`}
+            </small>
+            {note.tipsReceived > 0n && (
+              <small className="note-card-tip-badge">
+                💰 {formatEtherAmount(note.tipsReceived)} ETH
+              </small>
+            )}
+          </div>
+        </div>
+        <div className="note-card-actions">
+          {isOwner ? (
+            <>
+              <button
+                onClick={() => onEdit(note)}
+                title="Edit"
+                className="note-card-btn note-card-btn-edit"
+              >
+                ✏️
+              </button>
+              <button
+                onClick={() => onTogglePin(note.id)}
+                disabled={isPending}
+                title={note.isPinned ? 'Unpin' : 'Pin'}
+                className="note-card-btn note-card-btn-pin"
+              >
+                {note.isPinned ? '📌' : '📍'}
+              </button>
+              <button
+                onClick={() => onToggleVisibility(note.id)}
+                disabled={isPending}
+                title={note.isPublic ? 'Make Private' : 'Make Public'}
+                className="note-card-btn note-card-btn-visibility"
+              >
+                {note.isPublic ? '🔒' : '🌐'}
+              </button>
+              <button
+                onClick={() => onDelete(note.id)}
+                disabled={isPending}
+                title="Delete"
+                className="note-card-btn note-card-btn-delete"
+              >
+                🗑️
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => onTip(note.id)}
+              disabled={isPending}
+              title="Tip Author"
+              className="note-card-btn note-card-btn-tip"
+            >
+              💰 Tip
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
