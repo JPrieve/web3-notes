@@ -25,6 +25,11 @@
     "test": "react-app-rewired test",
     "eject": "react-scripts eject"
   },
+  "jest": {
+    "transformIgnorePatterns": [
+      "node_modules/(?!(wagmi|@wagmi|viem)/)"
+    ]
+  },
   "eslintConfig": {
     "extends": [
       "react-app",
